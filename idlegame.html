@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>⚔️ Pixel Hero: Hydra's Gate VFX ⚔️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ui-bg: #3d322d;
+            --ui-border: #8b7355;
+            --panel: #251d1a;
+            --gold: #f1c40f;
+            --exp: #3498db;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            image-rendering: pixelated;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 850px;
+            background: var(--ui-bg);
+            border: 6px solid #222;
+            padding: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+        }
+
+        #battle-view {
+            height: 320px;
+            /* อ้างอิงไฟล์ฉากหลังจากในโฟลเดอร์ */
+            background-image: url('9CoNIG.GIF'); 
+            background-size: cover;
+            background-position: center;
+            border: 4px solid #111;
+            margin-bottom: 15px;
+            position: relative;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* VFX: Shake */
+        .shake { animation: shakeAnim 0.2s ease-in-out; }
+        @keyframes shakeAnim {
+            0%, 100% { transform: translate(0,0); }
+            25% { transform: translate(5px, 5px); }
+            50% { transform: translate(-5px, -5px); }
+            75% { transform: translate(5px, -5px); }
+        }
+
+        .character-box { position: relative; z-index: 2; text-align: center; }
+
+        .sprite {
+            width: 160px;
+            height: 160px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: bottom;
+            transition: transform 0.1s;
+        }
+
+        /* VFX: Damage Text */
+        .damage-text {
+            position: absolute;
+            color: #ff3e3e;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 2px 2px #000;
+            animation: floatUp 0.6s ease-out forwards;
+            pointer-events: none;
+            z-index: 10;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-60px); opacity: 0; }
+        }
+
+        /* VFX: Hit Spark */
+        .hit-spark {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #fff 0%, #ffcc00 40%, transparent 70%);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: sparkAnim 0.2s ease-out;
+            z-index: 5;
+            pointer-events: none;
+        }
+        @keyframes sparkAnim {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .hp-outer {
+            width: 140px;
+            height: 12px;
+            background: #000;
+            border: 2px solid #fff;
+            margin-top: 10px;
+        }
+        .hp-inner { height: 100%; background: #e74c3c; width: 100%; transition: width 0.1s; }
+
+        .ui-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .panel { background: var(--panel); border: 3px solid var(--ui-border); padding: 15px; font-size: 10px; position: relative; }
+        .panel-label { position: absolute; top: -10px; left: 10px; background: var(--ui-bg); padding: 0 8px; font-size: 9px; color: var(--gold); }
+
+        .buy-btn {
+            background: #4a3c35; border: 2px solid #635046; color: #fff; padding: 8px;
+            width: 100%; cursor: pointer; font-family: 'Press Start 2P'; font-size: 8px; margin-bottom: 5px;
+        }
+        .buy-btn:hover:not(:disabled) { border-color: var(--gold); background: #5a4b42; }
+        .buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .stage-btn {
+            background: #2c3e50; color: #fff; border: 2px solid #fff;
+            font-family: 'Press Start 2P'; font-size: 9px; padding: 8px; width: 100%; margin-bottom: 8px; cursor: pointer;
+        }
+        .stage-btn.active { background: #e67e22; border-color: var(--gold); }
+
+        #game-log {
+            height: 90px; background: #000; border: 3px solid #333; padding: 10px;
+            font-size: 9px; color: #aaa; overflow-y: hidden; display: flex; flex-direction: column-reverse;
+        }
+
+        .hero-attack { transform: translateX(60px) scale(1.1) rotate(5deg); }
+        .monster-hurt { filter: brightness(2) contrast(1.5); }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="battle-view">
+        <div class="character-box">
+            <div id="hero-sprite" class="sprite"></div>
+            <div style="margin-top: 5px; font-size: 10px;">HERO Lv.<span id="ui-lv">1</span></div>
+        </div>
+
+        <div class="character-box" id="enemy-container">
+            <div id="enemy-sprite" class="sprite"></div>
+            <div class="hp-outer">
+                <div id="hp-bar" class="hp-inner"></div>
+            </div>
+            <div style="margin-top: 5px; font-size: 10px;" id="enemy-name">Loading...</div>
+        </div>
+    </div>
+
+    <div class="ui-grid">
+        <div class="panel">
+            <div class="panel-label">PLAYER STATS</div>
+            <p style="color:var(--gold); font-size: 12px;">💰 Gold: <span id="ui-gold">0</span></p>
+            <p>⚔️ ATK: <span id="ui-atk">5</span></p>
+            <p>⏱️ SPD: <span id="ui-spd">1.0</span>s</p>
+            <p style="color:var(--exp)">EXP: <span id="ui-exp">0/100</span></p>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">DUNGEON SELECTOR</div>
+            <button class="stage-btn active" onclick="changeStage(1)">Stage 1: Glade</button>
+            <button class="stage-btn" id="btn-s2" onclick="changeStage(2)" disabled>Stage 2: Caverns</button>
+            <button class="stage-btn" id="btn-s3" onclick="changeStage(3)" disabled>Stage 3: Peak</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">SHOP / UPGRADE</div>
+            <button class="buy-btn" id="shop-atk" onclick="buyUpgrade('atk')">
+                Upgrade Sword (+4 ATK)<br>Cost: <span id="cost-atk">15</span>G
+            </button>
+            <button class="buy-btn" id="shop-spd" onclick="buyUpgrade('spd')">
+                Upgrade Speed<br>Cost: <span id="cost-spd">50</span>G
+            </button>
+        </div>
+    </div>
+
+    <div id="game-log"></div>
+</div>
+
+<script>
+    // อ้างอิงชื่อไฟล์จากโฟลเดอร์ของคุณเป๊ะๆ (ระวังตัวพิมพ์ใหญ่-เล็ก)
+    const ASSETS = {
+        hero: "RO_GryphonMt.GIF",
+        slime: "ro-poring.GIF",
+        hydra: "ABYSS_ARTHUR.GIF"
+    };
+
+    let game = {
+        gold: 0, exp: 0, nextExp: 100, lv: 1, 
+        atk: 5, spd: 1000,
+        stage: 1, kills: 0,
+        mHp: 20, mMax: 20
+    };
+
+    const STAGE_DATA = {
+        1: { name: "Slime", baseHp: 30, gold: 8, img: ASSETS.slime },
+        2: { name: "Bat", baseHp: 150, gold: 25, img: ASSETS.slime },
+        3: { name: "Golem", baseHp: 500, gold: 70, img: ASSETS.slime }
+    };
+
+    let costs = { atk: 15, spd: 50 };
+
+    function init() {
+        document.getElementById('hero-sprite').style.backgroundImage = `url('${ASSETS.hero}')`;
+        spawnEnemy();
+        updateUI();
+        attackLoop();
+    }
+
+    function createVFX(damage) {
+        const container = document.getElementById('enemy-container');
+        const text = document.createElement('div');
+        text.className = 'damage-text';
+        text.innerText = damage;
+        text.style.left = Math.random() * 60 + 'px';
+        container.appendChild(text);
+        setTimeout(() => text.remove(), 600);
+
+        const spark = document.createElement('div');
+        spark.className = 'hit-spark';
+        spark.style.top = '40px';
+        spark.style.left = '40px';
+        container.appendChild(spark);
+        setTimeout(() => spark.remove(), 200);
+    }
+
+    function triggerScreenShake() {
+        const view = document.getElementById('battle-view');
+        view.classList.add('shake');
+        setTimeout(() => view.classList.remove('shake'), 200);
+    }
+
+    function attackLoop() {
+        const hero = document.getElementById('hero-sprite');
+        const enemy = document.getElementById('enemy-sprite');
+
+        hero.classList.add('hero-attack');
+        
+        setTimeout(() => {
+            hero.classList.remove('hero-attack');
+            game.mHp -= game.atk;
+            createVFX(game.atk);
+            enemy.classList.add('monster-hurt');
+            setTimeout(() => enemy.classList.remove('monster-hurt'), 100);
+
+            if (game.mHp <= 0) {
+                onEnemyDefeat();
+            }
+            updateUI();
+        }, 150);
+
+        setTimeout(attackLoop, game.spd);
+    }
+
+    function onEnemyDefeat() {
+        triggerScreenShake();
+        let rewardGold = STAGE_DATA[game.stage].gold;
+        if (game.kills % 5 === 4) rewardGold *= 4;
+
+        game.gold += rewardGold;
+        game.exp += 35;
+        game.kills++;
+
+        if (game.exp >= game.nextExp) {
+            game.lv++;
+            game.exp = 0;
+            game.nextExp = Math.floor(game.nextExp * 1.5);
+            game.atk += 1;
+            addLog(`🌟 Level Up! Lv.${game.lv}`, "color:#2ecc71");
+        }
+        spawnEnemy();
+    }
+
+    function spawnEnemy() {
+        const data = STAGE_DATA[game.stage];
+        const enemySprite = document.getElementById('enemy-sprite');
+        const enemyName = document.getElementById('enemy-name');
+        let hpIncrease = game.kills * (game.stage * 15);
+        
+        if (game.kills > 0 && game.kills % 5 === 0) {
+            triggerScreenShake();
+            game.mMax = (data.baseHp + hpIncrease) * 5;
+            enemyName.innerText = "BOSS HYDRA";
+            enemySprite.style.backgroundImage = `url('${ASSETS.hydra}')`;
+            enemySprite.style.transform = "scale(1.4)";
+            addLog("⚠️ BOSS HYDRA APPEARED!", "color:#e74c3c");
+        } else {
+            game.mMax = data.baseHp + hpIncrease;
+            enemyName.innerText = `${data.name} (v${game.kills + 1})`;
+            enemySprite.style.backgroundImage = `url('${data.img}')`;
+            enemySprite.style.transform = "scale(1.0)";
+        }
+        game.mHp = game.mMax;
+    }
+
+    function buyUpgrade(type) {
+        if (game.gold >= costs[type]) {
+            game.gold -= costs[type];
+            if (type === 'atk') {
+                game.atk += 4;
+                costs.atk = Math.floor(costs.atk * 1.6);
+            } else if (type === 'spd' && game.spd > 200) {
+                game.spd -= 100;
+                costs.spd = Math.floor(costs.spd * 2.2);
+            }
+            updateUI();
+        }
+    }
+
+    function changeStage(s) {
+        game.stage = s;
+        game.kills = 0;
+        document.querySelectorAll('.stage-btn').forEach((b, i) => b.classList.toggle('active', i+1 === s));
+        spawnEnemy();
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('ui-gold').innerText = Math.floor(game.gold);
+        document.getElementById('ui-lv').innerText = game.lv;
+        document.getElementById('ui-atk').innerText = game.atk;
+        document.getElementById('ui-exp').innerText = `${game.exp}/${game.nextExp}`;
+        document.getElementById('ui-spd').innerText = (game.spd/1000).toFixed(1);
+        document.getElementById('hp-bar').style.width = Math.max(0, (game.mHp / game.mMax) * 100) + "%";
+        
+        // Disable buttons if not enough gold
+        document.getElementById('shop-atk').disabled = (game.gold < costs.atk);
+        document.getElementById('shop-spd').disabled = (game.gold < costs.spd || game.spd <= 200);
+        
+        // Stage Unlock
+        document.getElementById('btn-s2').disabled = (game.lv < 5);
+        document.getElementById('btn-s3').disabled = (game.lv < 15);
+    }
+
+    function addLog(msg, style = "") {
+        const log = document.getElementById('game-log');
+        log.innerHTML = `<div style="${style}">> ${msg}</div>` + log.innerHTML;
+    }
+
+    init();
+</script>
+</body>
+</html>
