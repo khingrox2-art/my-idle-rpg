@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*' # สั่งให้ทำงานเฉพาะเวลาเราดัน Tag ที่ขึ้นต้นด้วย v เช่น v1.1.2
+  workflow_dispatch:
 
 permissions:
   contents: read
